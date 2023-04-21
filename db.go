@@ -235,29 +235,14 @@ func newTestDB(dirver string, pragme Pragma) (path string, db *DB, err error) {
 
 func prepareTestDB(db *DB) error {
 	ddm := []string{
-		`CREATE TABLE IF NOT EXISTS authors (
-			author_id INTEGER PRIMARY KEY,
-			name TEXT,
-			email TEXT
-		)`,
-		`CREATE INDEX IF NOT EXISTS idx_authors_email ON authors (email)`,
-
-		`CREATE TABLE IF NOT EXISTS posts (
-			post_id INTEGER PRIMARY KEY,
+		`CREATE TABLE IF NOT EXISTS articles (
+			article_id INTEGER PRIMARY KEY,
 			title TEXT,
 			content TEXT,
 			pub_date TEXT,
 			author_id INTEGER
 		)`,
-		`CREATE INDEX IF NOT EXISTS idx_posts_author_id ON posts (author_id)`,
-
-		`CREATE TABLE IF NOT EXISTS comments (
-			comment_id INTEGER PRIMARY KEY,
-			post_id INTEGER,
-			content TEXT,
-			pub_date TEXT
-		)`,
-		`CREATE INDEX IF NOT EXISTS idx_comments_post_id ON comments (post_id)`,
+		`CREATE INDEX IF NOT EXISTS idx_articles_author_id ON articles (author_id)`,
 	}
 
 	for _, cmd := range ddm {
@@ -301,10 +286,15 @@ func newTPS(ctx context.Context, worker int, fn func(context.Context) error) *TP
 				case <-ctx.Done():
 					return
 				default:
-					if err := fn(ctx); err != nil {
-						result.Error.Add(1)
-					} else {
+					err := fn(ctx)
+					if err == sql.ErrNoRows || err == context.DeadlineExceeded {
+						err = nil
+					}
+
+					if err == nil {
 						result.Success.Add(1)
+					} else {
+						result.Error.Add(1)
 					}
 				}
 			}

@@ -2,15 +2,14 @@ package main
 
 import (
 	"context"
-	"database/sql"
 	"errors"
 	"math/rand"
 
 	"github.com/go-faker/faker/v4"
 )
 
-type post struct {
-	ID       int64  `db:"post_id" faker:"-"`
+type article struct {
+	ID       int64  `db:"article_id" faker:"-"`
 	Title    string `db:"title" faker:"sentence"`
 	Content  string `db:"content" faker:"paragraph"`
 	PubDate  string `db:"pub_date" faker:"timestamp"`
@@ -18,41 +17,37 @@ type post struct {
 }
 
 var (
-	posts []*post
+	articles []*article
 )
 
 func init() {
-	posts = make([]*post, 0, 1000)
+	articles = make([]*article, 0, 1000)
 	for i := 0; i < 1000; i++ {
-		p := &post{}
-		if err := faker.FakeData(p); err != nil {
+		a := &article{}
+		if err := faker.FakeData(a); err != nil {
 			panic(err)
 		}
-		p.AuthorID = rand.Int63n(100)
-		posts = append(posts, p)
+		a.AuthorID = rand.Int63n(100)
+		articles = append(articles, a)
 	}
 }
 
-func getPost() *post {
-	return posts[rand.Intn(len(posts))]
+func getArticles() *article {
+	return articles[rand.Intn(len(articles))]
 }
 
-func insertPost(ctx context.Context, db *DB, p *post) error {
+func insertArticle(ctx context.Context, db *DB, a *article) error {
 	_, err := db.NamedExecContext(ctx, `
-		INSERT INTO posts (title, content, pub_date, author_id)
+		INSERT INTO articles (title, content, pub_date, author_id)
 		VALUES (:title, :content, :pub_date, :author_id)
-	`, p)
+	`, a)
 	return err
 }
 
-func selectPost(ctx context.Context, db *DB, id int64) error {
-	p := &post{}
+func selectArticle(ctx context.Context, db *DB, id int64) error {
+	p := &article{}
 
-	err := db.GetContext(ctx, p, `select * from posts where post_id = ?`, id)
-	if err == sql.ErrNoRows || err == context.DeadlineExceeded {
-		err = nil
-	}
-	return err
+	return db.GetContext(ctx, p, `select * from articles where article_id = ?`, id)
 }
 
 // 按照指定概率随机返回真假

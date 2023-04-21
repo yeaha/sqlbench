@@ -11,7 +11,7 @@ import (
 )
 
 // WORKER 并发数
-const WORKER = 8
+const WORKER = 4
 
 func init() {
 	slog.SetDefault(slog.New(slog.HandlerOptions{
@@ -22,10 +22,12 @@ func init() {
 func main() {
 	// writeTPS()
 	// readTPS()
-	rwTPS()
+	readWriteTPS()
 }
 
 func writeTPS() {
+	fmt.Println("WRITE TPS:")
+
 	pragmas := []Pragma{
 		{},
 		{
@@ -66,11 +68,11 @@ func writeTPS() {
 			defer cancel()
 
 			tps := newTPS(ctx, WORKER, func(ctx context.Context) error {
-				return insertPost(ctx, db, getPost())
+				return insertArticle(ctx, db, getArticles())
 			})
 
 			fmt.Println("")
-			fmt.Printf("%s://%s\n", db.DriverName(), db.dsn)
+			fmt.Printf("%s:%s\n", db.DriverName(), db.dsn)
 			fmt.Println(tps)
 		}
 	}
@@ -105,27 +107,30 @@ func readTPS() {
 			}
 			defer os.RemoveAll(path)
 
-			for _, p := range posts {
-				if err := insertPost(context.Background(), db, p); err != nil {
+			for _, p := range articles {
+				if err := insertArticle(context.Background(), db, p); err != nil {
 					panic(fmt.Errorf("insert post, %w", err))
 				}
+			}
+			if _, err := db.Exec("vacuum"); err != nil {
+				panic(fmt.Errorf("vacuum, %w", err))
 			}
 
 			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 			defer cancel()
 
 			tps := newTPS(ctx, WORKER, func(ctx context.Context) error {
-				return selectPost(ctx, db, int64(rand.Intn(len(posts))))
+				return selectArticle(ctx, db, int64(rand.Intn(len(articles))))
 			})
 
 			fmt.Println("")
-			fmt.Printf("%s://%s\n", db.DriverName(), db.dsn)
+			fmt.Printf("%s:%s\n", db.DriverName(), db.dsn)
 			fmt.Println(tps)
 		}
 	}
 }
 
-func rwTPS() {
+func readWriteTPS() {
 	dirvers := []string{
 		"sqlite",
 		"sqlite3",
@@ -149,10 +154,13 @@ func rwTPS() {
 			}
 			defer os.RemoveAll(path)
 
-			for _, p := range posts {
-				if err := insertPost(context.Background(), db, p); err != nil {
+			for _, p := range articles {
+				if err := insertArticle(context.Background(), db, p); err != nil {
 					panic(fmt.Errorf("insert post, %w", err))
 				}
+			}
+			if _, err := db.Exec("vacuum"); err != nil {
+				panic(fmt.Errorf("vacuum, %w", err))
 			}
 
 			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -160,14 +168,14 @@ func rwTPS() {
 
 			tps := newTPS(ctx, worker, func(ctx context.Context) error {
 				if randomBool(percent) {
-					return insertPost(ctx, db, getPost())
+					return insertArticle(ctx, db, getArticles())
 				}
-				return selectPost(ctx, db, int64(rand.Intn(len(posts))))
+				return selectArticle(ctx, db, int64(rand.Intn(len(articles))))
 			})
 
 			fmt.Println("")
 			fmt.Printf("write percent: %d%%\n", percent)
-			fmt.Printf("%s://%s\n", db.DriverName(), db.dsn)
+			fmt.Printf("%s:%s\n", db.DriverName(), db.dsn)
 			fmt.Println(tps)
 		}
 	}
