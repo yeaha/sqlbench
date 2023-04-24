@@ -114,9 +114,9 @@ func sqliteReadTPS() {
 	}
 }
 
-func sqliteReadWriteTPS() {
+func sqliteTPS() {
 	dirvers := []string{
-		"sqlite",
+		// "sqlite",
 		"sqlite3",
 	}
 
@@ -129,7 +129,7 @@ func sqliteReadWriteTPS() {
 		CacheSize:   10000,
 	}
 
-	for _, percent := range []int{0, 10, 30, 50, 70, 90, 100} {
+	for _, percent := range []int{0, 30, 50, 70, 100} {
 		for _, driver := range dirvers {
 			path, db, err := newTestDB(driver, pragma)
 			if err != nil {
@@ -149,6 +149,10 @@ func sqliteReadWriteTPS() {
 			ctx, cancel := context.WithTimeout(context.Background(), benchTime)
 			defer cancel()
 
+			fmt.Println("")
+			fmt.Printf("write percent: %d%%\n", percent)
+			fmt.Printf("%s:%s\n", db.DriverName(), db.dsn)
+
 			tps := newTPS(ctx, WORKER, func(ctx context.Context) error {
 				if randomBool(percent) {
 					return insertArticle(ctx, db, getArticle())
@@ -156,9 +160,6 @@ func sqliteReadWriteTPS() {
 				return selectArticle(ctx, db, int64(rand.Intn(len(articles))))
 			})
 
-			fmt.Println("")
-			fmt.Printf("write percent: %d%%\n", percent)
-			fmt.Printf("%s:%s\n", db.DriverName(), db.dsn)
 			fmt.Println(tps)
 		}
 	}

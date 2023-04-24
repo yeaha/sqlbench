@@ -21,8 +21,7 @@ func init() {
 func main() {
 	// sqliteReadTPS()
 	// sqliteWriteTPS()
-	// sqliteReadWriteTPS()
 
-	pgsqlReadTPS()
-	// pgsqlWriteTPS()
+	sqliteTPS()
+	pgsqlTPS()
 }

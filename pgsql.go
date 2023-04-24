@@ -35,53 +35,43 @@ func newPGSQLDB() (*sqlx.DB, error) {
 	return db.Unsafe(), nil
 }
 
-func pgsqlWriteTPS() {
+func pgsqlTPS() {
 	db, err := newPGSQLDB()
 	if err != nil {
 		panic(fmt.Errorf("connect postgresql, %w", err))
 	}
 	defer db.Close()
-
-	ctx, cancel := context.WithTimeout(context.Background(), benchTime)
-	defer cancel()
-
-	tps := newTPS(ctx, WORKER, func(ctx context.Context) error {
-		_, err := db.NamedExecContext(ctx, `
-			INSERT INTO public.articles (title, content, pub_date, author_id)
-			VALUES (:title, :content, :pub_date, :author_id)
-		`, getArticle())
-		return err
-	})
-
-	fmt.Println("postgrsql write tps:")
-	fmt.Println(tps)
-}
-
-func pgsqlReadTPS() {
-	db, err := newPGSQLDB()
-	if err != nil {
-		panic(fmt.Errorf("connect postgresql, %w", err))
-	}
-	defer db.Close()
-
-	ctx, cancel := context.WithTimeout(context.Background(), benchTime)
-	defer cancel()
 
 	for _, v := range articles {
-		_, err = db.NamedExecContext(ctx, `
+		_, err = db.NamedExecContext(context.Background(), `
 			INSERT INTO public.articles (title, content, pub_date, author_id)
 			VALUES (:title, :content, :pub_date, :author_id)
-		`, v)
+			`, v)
 		if err != nil {
 			panic(fmt.Errorf("prepare data, %w", err))
 		}
 	}
 
-	tps := newTPS(ctx, WORKER, func(ctx context.Context) error {
-		p := &article{}
-		return db.GetContext(ctx, p, `select * from public.articles where article_id = $1`, rand.Int63n(int64(len(articles))))
-	})
+	for _, writePercent := range []int{0, 30, 50, 70, 100} {
+		fmt.Println("")
+		fmt.Printf("postgrsql write percent: %d%%\n", writePercent)
 
-	fmt.Println("postgrsql read tps:")
-	fmt.Println(tps)
+		ctx, cancel := context.WithTimeout(context.Background(), benchTime)
+		defer cancel()
+
+		tps := newTPS(ctx, WORKER, func(ctx context.Context) (err error) {
+			if randomBool(writePercent) {
+				_, err = db.NamedExecContext(ctx, `
+					INSERT INTO public.articles (title, content, pub_date, author_id)
+					VALUES (:title, :content, :pub_date, :author_id)
+					`, getArticle())
+			} else {
+				p := &article{}
+				err = db.GetContext(ctx, p, `select * from public.articles where article_id = $1`, rand.Int63n(int64(len(articles))))
+			}
+			return
+		})
+
+		fmt.Println(tps)
+	}
 }

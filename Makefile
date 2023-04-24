@@ -7,4 +7,4 @@ start-postgresql:
 		-e POSTGRES_DB=bench \
 		-p 127.0.0.1:5432:5432 \
 		-v dbdata:/var/lib/postgresql/data \
-		postgres:15-alpine -c shared_buffers=1GB -c work_mem=32MB -c effective_cache_size=2GB
+		postgres:15-alpine -c shared_buffers=2GB -c work_mem=32MB -c effective_cache_size=4GB
