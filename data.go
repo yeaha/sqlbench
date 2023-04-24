@@ -32,7 +32,7 @@ func init() {
 	}
 }
 
-func getArticles() *article {
+func getArticle() *article {
 	return articles[rand.Intn(len(articles))]
 }
 

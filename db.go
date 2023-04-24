@@ -287,7 +287,7 @@ func newTPS(ctx context.Context, worker int, fn func(context.Context) error) *TP
 					return
 				default:
 					err := fn(ctx)
-					if err == sql.ErrNoRows || err == context.DeadlineExceeded {
+					if err == sql.ErrNoRows {
 						err = nil
 					}
 
