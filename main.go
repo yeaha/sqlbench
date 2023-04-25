@@ -23,5 +23,5 @@ func main() {
 	// sqliteWriteTPS()
 
 	sqliteTPS()
-	pgsqlTPS()
+	// pgsqlTPS()
 }

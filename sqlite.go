@@ -11,14 +11,34 @@ func sqliteWriteTPS() {
 	fmt.Println("WRITE TPS:")
 
 	pragmas := []Pragma{
-		{},
 		{
-			WithMutex: true,
+			BusyTimeout: 0, // github.com/mattn/go-sqlite3 默认busy_timeout=5000，需要设置为0才公平
+		},
+		{
+			MaxOpenConns: 1,
+			BusyTimeout:  0,
+		},
+		{
+			WithMutex:   true,
+			BusyTimeout: 0,
 		},
 		{
 			BusyTimeout: 3000,
 		},
 		{
+			MaxOpenConns: 1,
+			BusyTimeout:  0,
+			JournalMode:  "WAL",
+			Synchronous:  "NORMAL",
+		},
+		{
+			MaxOpenConns: 2,
+			BusyTimeout:  0,
+			JournalMode:  "WAL",
+			Synchronous:  "NORMAL",
+		},
+		{
+			BusyTimeout: 0,
 			JournalMode: "WAL",
 			Synchronous: "NORMAL",
 		},
@@ -55,6 +75,9 @@ func sqliteWriteTPS() {
 
 			fmt.Println("")
 			fmt.Printf("%s:%s\n", db.DriverName(), db.dsn)
+			if pragma.MaxOpenConns > 0 {
+				fmt.Printf("MaxOpenConns: %d\n", pragma.MaxOpenConns)
+			}
 			fmt.Println(tps)
 		}
 	}
@@ -116,51 +139,65 @@ func sqliteReadTPS() {
 
 func sqliteTPS() {
 	dirvers := []string{
-		// "sqlite",
+		"sqlite",
 		"sqlite3",
 	}
 
-	pragma := Pragma{
-		// WithMutex:   true,
-		BusyTimeout: 3000,
-		JournalMode: "WAL",
-		Synchronous: "NORMAL",
-		TempStore:   "MEMORY",
-		CacheSize:   10000,
+	pragmas := []Pragma{
+		// {
+		// 	MaxOpenConns: 1,
+		// 	BusyTimeout:  0,
+		// 	JournalMode:  "WAL",
+		// 	Synchronous:  "NORMAL",
+		// 	TempStore:    "MEMORY",
+		// 	CacheSize:    10000,
+		// },
+		{
+			BusyTimeout: 3000,
+			JournalMode: "WAL",
+			Synchronous: "NORMAL",
+			TempStore:   "MEMORY",
+			CacheSize:   10000,
+		},
 	}
 
 	for _, percent := range []int{0, 30, 50, 70, 100} {
-		for _, driver := range dirvers {
-			path, db, err := newTestDB(driver, pragma)
-			if err != nil {
-				panic(fmt.Errorf("prepare test database, %w", err))
-			}
-			defer os.RemoveAll(path)
-
-			for _, p := range articles {
-				if err := insertArticle(context.Background(), db, p); err != nil {
-					panic(fmt.Errorf("insert post, %w", err))
+		for _, pragma := range pragmas {
+			for _, driver := range dirvers {
+				path, db, err := newTestDB(driver, pragma)
+				if err != nil {
+					panic(fmt.Errorf("prepare test database, %w", err))
 				}
-			}
-			if _, err := db.Exec("vacuum"); err != nil {
-				panic(fmt.Errorf("vacuum, %w", err))
-			}
+				defer os.RemoveAll(path)
 
-			ctx, cancel := context.WithTimeout(context.Background(), benchTime)
-			defer cancel()
-
-			fmt.Println("")
-			fmt.Printf("write percent: %d%%\n", percent)
-			fmt.Printf("%s:%s\n", db.DriverName(), db.dsn)
-
-			tps := newTPS(ctx, WORKER, func(ctx context.Context) error {
-				if randomBool(percent) {
-					return insertArticle(ctx, db, getArticle())
+				for _, p := range articles {
+					if err := insertArticle(context.Background(), db, p); err != nil {
+						panic(fmt.Errorf("insert post, %w", err))
+					}
 				}
-				return selectArticle(ctx, db, int64(rand.Intn(len(articles))))
-			})
+				if _, err := db.Exec("vacuum"); err != nil {
+					panic(fmt.Errorf("vacuum, %w", err))
+				}
 
-			fmt.Println(tps)
+				ctx, cancel := context.WithTimeout(context.Background(), benchTime)
+				defer cancel()
+
+				fmt.Println("")
+				fmt.Printf("write percent: %d%%\n", percent)
+				if n := pragma.MaxOpenConns; n > 0 {
+					fmt.Printf("MaxOpenConns: %d\n", n)
+				}
+				fmt.Printf("%s:%s\n", db.DriverName(), db.dsn)
+
+				tps := newTPS(ctx, WORKER, func(ctx context.Context) error {
+					if randomBool(percent) {
+						return insertArticle(ctx, db, getArticle())
+					}
+					return selectArticle(ctx, db, int64(rand.Intn(len(articles))))
+				})
+
+				fmt.Println(tps)
+			}
 		}
 	}
 }

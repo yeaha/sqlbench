@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"runtime"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -22,7 +23,8 @@ import (
 //
 // https://www.sqlite.org/pragma.html
 type Pragma struct {
-	WithMutex bool
+	WithMutex    bool
+	MaxOpenConns int
 
 	BusyTimeout       int
 	Cache             string
@@ -47,6 +49,7 @@ func (p Pragma) encode(driver string) string {
 
 func (p Pragma) encodeMattn() string {
 	val := url.Values{}
+	val.Set("_busy_timeout", fmt.Sprintf("%d", p.BusyTimeout))
 
 	if v := p.JournalMode; v != "" {
 		val.Set("_journal_mode", v)
@@ -56,9 +59,6 @@ func (p Pragma) encodeMattn() string {
 	}
 	if v := p.CacheSize; v != 0 {
 		val.Set("_cache_size", fmt.Sprintf("%d", v))
-	}
-	if v := p.BusyTimeout; v != 0 {
-		val.Set("_busy_timeout", fmt.Sprintf("%d", v))
 	}
 	if v := p.FullSync; v {
 		val.Set("_fullsync", "1")
@@ -82,6 +82,7 @@ func (p Pragma) encodeMattn() string {
 
 func (p Pragma) encodeModernc() string {
 	val := url.Values{}
+	val.Add("_pragma", fmt.Sprintf("busy_timeout(%d)", p.BusyTimeout))
 
 	if v := p.JournalMode; v != "" {
 		val.Add("_pragma", fmt.Sprintf("journal_mode(%s)", v))
@@ -91,9 +92,6 @@ func (p Pragma) encodeModernc() string {
 	}
 	if v := p.CacheSize; v != 0 {
 		val.Add("_pragma", fmt.Sprintf("cache_size(%d)", v))
-	}
-	if v := p.BusyTimeout; v != 0 {
-		val.Add("_pragma", fmt.Sprintf("busy_timeout(%d)", v))
 	}
 	if v := p.FullSync; v {
 		val.Add("_pragma", "fullsync(1)")
@@ -134,6 +132,11 @@ func NewDB(driver, file string, pragma Pragma) (*DB, error) {
 	db, err := sqlx.Connect(driver, dsn)
 	if err != nil {
 		return nil, err
+	}
+	if pragma.MaxOpenConns > 0 {
+		db.SetMaxOpenConns(pragma.MaxOpenConns)
+	} else {
+		db.SetMaxOpenConns(runtime.NumCPU() * 2)
 	}
 	// slog.Debug("connect database", slog.String("dsn", dsn), slog.String("driver", driver))
 
