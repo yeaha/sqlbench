@@ -19,9 +19,8 @@ func init() {
 }
 
 func main() {
-	// sqliteReadTPS()
-	// sqliteWriteTPS()
-
-	sqliteTPS()
-	// pgsqlTPS()
+	sqliteReadQPS()
+	sqliteWriteQPS()
+	sqliteQPS()
+	pgsqlQPS()
 }

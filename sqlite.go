@@ -7,8 +7,8 @@ import (
 	"os"
 )
 
-func sqliteWriteTPS() {
-	fmt.Println("WRITE TPS:")
+func sqliteWriteQPS() {
+	fmt.Println("WRITE QPS:")
 
 	pragmas := []Pragma{
 		{
@@ -69,7 +69,7 @@ func sqliteWriteTPS() {
 			ctx, cancel := context.WithTimeout(context.Background(), benchTime)
 			defer cancel()
 
-			tps := newTPS(ctx, WORKER, func(ctx context.Context) error {
+			tps := newQPS(ctx, WORKER, func(ctx context.Context) error {
 				return insertArticle(ctx, db, getArticle())
 			})
 
@@ -83,8 +83,8 @@ func sqliteWriteTPS() {
 	}
 }
 
-func sqliteReadTPS() {
-	fmt.Println("READ TPS:")
+func sqliteReadQPS() {
+	fmt.Println("READ QPS:")
 
 	pragmas := []Pragma{
 		{},
@@ -126,7 +126,7 @@ func sqliteReadTPS() {
 			ctx, cancel := context.WithTimeout(context.Background(), benchTime)
 			defer cancel()
 
-			tps := newTPS(ctx, WORKER, func(ctx context.Context) error {
+			tps := newQPS(ctx, WORKER, func(ctx context.Context) error {
 				return selectArticle(ctx, db, int64(rand.Intn(len(articles))))
 			})
 
@@ -137,21 +137,21 @@ func sqliteReadTPS() {
 	}
 }
 
-func sqliteTPS() {
+func sqliteQPS() {
 	dirvers := []string{
 		"sqlite",
 		"sqlite3",
 	}
 
 	pragmas := []Pragma{
-		// {
-		// 	MaxOpenConns: 1,
-		// 	BusyTimeout:  0,
-		// 	JournalMode:  "WAL",
-		// 	Synchronous:  "NORMAL",
-		// 	TempStore:    "MEMORY",
-		// 	CacheSize:    10000,
-		// },
+		{
+			MaxOpenConns: 1,
+			BusyTimeout:  0,
+			JournalMode:  "WAL",
+			Synchronous:  "NORMAL",
+			TempStore:    "MEMORY",
+			CacheSize:    10000,
+		},
 		{
 			BusyTimeout: 3000,
 			JournalMode: "WAL",
@@ -189,7 +189,7 @@ func sqliteTPS() {
 				}
 				fmt.Printf("%s:%s\n", db.DriverName(), db.dsn)
 
-				tps := newTPS(ctx, WORKER, func(ctx context.Context) error {
+				tps := newQPS(ctx, WORKER, func(ctx context.Context) error {
 					if randomBool(percent) {
 						return insertArticle(ctx, db, getArticle())
 					}

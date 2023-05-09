@@ -35,7 +35,7 @@ func newPGSQLDB() (*sqlx.DB, error) {
 	return db.Unsafe(), nil
 }
 
-func pgsqlTPS() {
+func pgsqlQPS() {
 	db, err := newPGSQLDB()
 	if err != nil {
 		panic(fmt.Errorf("connect postgresql, %w", err))
@@ -54,12 +54,12 @@ func pgsqlTPS() {
 
 	for _, writePercent := range []int{0, 30, 50, 70, 100} {
 		fmt.Println("")
-		fmt.Printf("postgrsql write percent: %d%%\n", writePercent)
+		fmt.Printf("postgresql write percent: %d%%\n", writePercent)
 
 		ctx, cancel := context.WithTimeout(context.Background(), benchTime)
 		defer cancel()
 
-		tps := newTPS(ctx, WORKER, func(ctx context.Context) (err error) {
+		tps := newQPS(ctx, WORKER, func(ctx context.Context) (err error) {
 			if randomBool(writePercent) {
 				_, err = db.NamedExecContext(ctx, `
 					INSERT INTO public.articles (title, content, pub_date, author_id)

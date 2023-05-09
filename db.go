@@ -256,22 +256,22 @@ func prepareTestDB(db *DB) error {
 	return nil
 }
 
-// TPS 每秒事务完成度
-type TPS struct {
+// QPS 每秒sql执行次数
+type QPS struct {
 	Worker   int
 	Duration time.Duration
 	Success  *atomic.Int64
 	Error    *atomic.Int64
 }
 
-func (t *TPS) String() string {
-	return fmt.Sprintf("duration: %s, worker: %d, success: %d, error: %d, tps: %.2f",
-		t.Duration, t.Worker, t.Success.Load(), t.Error.Load(), float64(t.Success.Load())/t.Duration.Seconds())
+func (q *QPS) String() string {
+	return fmt.Sprintf("duration: %s, worker: %d, success: %d, error: %d, qps: %.2f",
+		q.Duration, q.Worker, q.Success.Load(), q.Error.Load(), float64(q.Success.Load())/q.Duration.Seconds())
 }
 
-func newTPS(ctx context.Context, worker int, fn func(context.Context) error) *TPS {
+func newQPS(ctx context.Context, worker int, fn func(context.Context) error) *QPS {
 	startTime := time.Now()
-	result := &TPS{
+	result := &QPS{
 		Worker:  worker,
 		Success: &atomic.Int64{},
 		Error:   &atomic.Int64{},
